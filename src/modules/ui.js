@@ -129,7 +129,7 @@ export function renderAnalyzing() {
 
 export function renderResult(state, handlers) {
   const r = state.lastResult;
-  let zoom = 1;
+  const view = { zoom: 1, showCandidates: false, showOverlay: false };
 
   if (!r || !r.found) {
     setApp(
@@ -155,6 +155,7 @@ export function renderResult(state, handlers) {
   };
   const lv = levelMap[r.level] || levelMap.low;
   const angle = Math.round(((r.angle % 360) + 540) % 360 - 180);
+  const candCount = r.candidates ? r.candidates.length : 0;
 
   setApp(
     shell(
@@ -166,9 +167,13 @@ export function renderResult(state, handlers) {
            <span class="badge">內點 ${r.inliers}</span>
            <span class="badge">旋轉約 ${angle}°</span>
          </div>
+         <div class="result-toggles">
+           <button class="btn ghost" id="zoom">🔍 放大</button>
+           ${r.overlayCanvas ? '<button class="btn ghost" id="overlay">🧩 疊合碎片</button>' : ''}
+           ${candCount > 1 ? `<button class="btn ghost" id="candidates">📍 候選 ${candCount}</button>` : ''}
+         </div>
          <div class="result-actions">
-           <button class="btn ghost" id="zoom">🔍 放大檢視</button>
-           <button class="btn primary" id="rescan">再掃一片</button>
+           <button class="btn primary block" id="rescan">再掃一片</button>
          </div>
          <button class="btn ghost block" id="change">更換大圖</button>
        </div>`
@@ -177,15 +182,32 @@ export function renderResult(state, handlers) {
 
   const canvas = document.getElementById('result-canvas');
   const redraw = () =>
-    requestAnimationFrame(() => drawMatch(canvas, state.puzzle.bitmap, state.reference, r, zoom));
+    requestAnimationFrame(() =>
+      drawMatch(canvas, state.puzzle.bitmap, state.reference, r, view)
+    );
   redraw();
   window.addEventListener('resize', redraw, { once: true });
 
   document.getElementById('zoom').addEventListener('click', (e) => {
-    zoom = zoom === 1 ? CONFIG.ZOOM_LEVEL : 1;
-    e.currentTarget.textContent = zoom === 1 ? '🔍 放大檢視' : '↩︎ 還原檢視';
+    view.zoom = view.zoom === 1 ? CONFIG.ZOOM_LEVEL : 1;
+    e.currentTarget.classList.toggle('active', view.zoom !== 1);
+    e.currentTarget.textContent = view.zoom === 1 ? '🔍 放大' : '↩︎ 還原';
     redraw();
   });
+
+  const bindToggle = (id, key, onText, offText) => {
+    const btn = document.getElementById(id);
+    if (!btn) return;
+    btn.addEventListener('click', () => {
+      view[key] = !view[key];
+      btn.classList.toggle('active', view[key]);
+      btn.textContent = view[key] ? onText : offText;
+      redraw();
+    });
+  };
+  bindToggle('overlay', 'showOverlay', '🧩 隱藏疊合', '🧩 疊合碎片');
+  bindToggle('candidates', 'showCandidates', '📍 隱藏候選', `📍 候選 ${candCount}`);
+
   document.getElementById('rescan').addEventListener('click', () => handlers.onRescan());
   document.getElementById('change').addEventListener('click', () => handlers.onChangePuzzle());
 }
@@ -193,7 +215,9 @@ export function renderResult(state, handlers) {
 // ---- 結果繪製 ----------------------------------------------------------
 
 // bitmap：原始大圖；reference：特徵空間尺寸（縮放後），result.corners/center 以此為基準。
-function drawMatch(canvas, bitmap, reference, result, zoom = 1) {
+// view: { zoom, showCandidates, showOverlay }
+function drawMatch(canvas, bitmap, reference, result, view = {}) {
+  const zoom = view.zoom || 1;
   const dpr = window.devicePixelRatio || 1;
   const cssW = canvas.parentElement.clientWidth || 360;
   const aspect = bitmap.height / bitmap.width;
@@ -220,11 +244,44 @@ function drawMatch(canvas, bitmap, reference, result, zoom = 1) {
   ctx.clearRect(0, 0, cssW, cssH);
   ctx.drawImage(bitmap, sx, sy, srcW, srcH, 0, 0, cssW, cssH);
 
+  // 半透明疊合碎片（overlayCanvas 為大圖特徵空間尺寸，需對齊目前裁切視窗）
+  if (view.showOverlay && result.overlayCanvas) {
+    const oc = result.overlayCanvas;
+    const osx = (sx / bitmap.width) * oc.width;
+    const osy = (sy / bitmap.height) * oc.height;
+    const osw = (srcW / bitmap.width) * oc.width;
+    const osh = (srcH / bitmap.height) * oc.height;
+    ctx.save();
+    ctx.globalAlpha = CONFIG.OVERLAY_ALPHA;
+    ctx.drawImage(oc, osx, osy, osw, osh, 0, 0, cssW, cssH);
+    ctx.restore();
+  }
+
   // 特徵空間座標 → 畫布座標
   const mapX = (x) => (((x / reference.width) * bitmap.width - sx) / srcW) * cssW;
   const mapY = (y) => (((y / reference.height) * bitmap.height - sy) / srcH) * cssH;
 
-  // 四邊形
+  // Top-N 候選位置（次要藍色標記）
+  if (view.showCandidates && result.candidates) {
+    result.candidates.forEach((cand, i) => {
+      const x = mapX(cand.x);
+      const y = mapY(cand.y);
+      ctx.beginPath();
+      ctx.arc(x, y, 11, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(96, 165, 250, 0.85)';
+      ctx.fill();
+      ctx.lineWidth = 2;
+      ctx.strokeStyle = '#fff';
+      ctx.stroke();
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 12px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(String(i + 1), x, y);
+    });
+  }
+
+  // 最佳位置四邊形
   const c = result.corners;
   ctx.lineWidth = 3;
   ctx.strokeStyle = 'rgba(74, 222, 128, 0.95)';

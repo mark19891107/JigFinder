@@ -1,6 +1,7 @@
 // 載入並初始化 OpenCV.js（WebAssembly 版）。
-// 預設由 CDN 載入；若要改為內嵌，將 opencv.js 放到 public/ 並改成 './opencv.js'。
-const OPENCV_URL = 'https://docs.opencv.org/4.10.0/opencv.js';
+// 由本站自身提供（public/opencv.js，來源見 scripts/vendor-opencv.mjs），不依賴外部 CDN。
+// 以 document.baseURI 解析，確保 GitHub Pages 子路徑與本機開發都能正確載入。
+const OPENCV_URL = new URL('opencv.js', document.baseURI).href;
 
 let loadPromise = null;
 

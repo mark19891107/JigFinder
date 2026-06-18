@@ -269,6 +269,25 @@ body {
   color: var(--danger);
 }
 
+.result-toggles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.result-toggles .btn {
+  flex: 1;
+  min-width: 96px;
+  font-size: 0.9rem;
+  padding: 10px 12px;
+}
+
+.btn.active {
+  background: var(--primary);
+  color: var(--primary-ink);
+  border-color: var(--primary);
+}
+
 .result-actions {
   display: flex;
   gap: 10px;

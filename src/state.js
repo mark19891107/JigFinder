@@ -10,6 +10,11 @@ export const CONFIG = {
   RANSAC_REPROJ: 5.0,       // RANSAC 重投影誤差容忍 (px)
   CROP_RATIO: 0.7,          // 中央對位框佔取景方框的比例
   ZOOM_LEVEL: 2.5,          // 結果頁放大檢視倍率
+  // Top-N 候選位置（依配對特徵點的分佈群聚投票）
+  CANDIDATE_GRID: 16,       // 投票網格密度（沿長邊切幾格）
+  MAX_CANDIDATES: 5,        // 最多回傳幾個候選
+  MIN_CANDIDATE_VOTES: 3,   // 候選的最低票數
+  OVERLAY_ALPHA: 0.55,      // 半透明疊合碎片的透明度
 };
 
 // 應用程式狀態

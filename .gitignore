@@ -3,3 +3,6 @@ dist
 *.local
 .DS_Store
 .vite
+
+# OpenCV.js 由 @techstark/opencv-js 經 postinstall 複製產生（10MB+），不入版控
+public/opencv.js

@@ -5,6 +5,7 @@ import { savePuzzle, loadPuzzle } from './modules/storage.js';
 import { startCamera, stopCamera, captureCrop } from './modules/camera.js';
 import { toScaledCanvas, detectFeatures, releaseFeatures } from './modules/features.js';
 import { matchPiece } from './modules/matcher.js';
+import { buildOverlayCanvas } from './modules/overlay.js';
 import * as ui from './modules/ui.js';
 
 let cv = null;
@@ -62,7 +63,24 @@ async function analyze(sourceCanvas) {
   try {
     const scaled = toScaledCanvas(sourceCanvas, CONFIG.PIECE_MAX_SIDE);
     piece = detectFeatures(cv, scaled, CONFIG.ORB_FEATURES_PIECE);
-    state.lastResult = matchPiece(cv, piece, state.reference);
+    const result = matchPiece(cv, piece, state.reference);
+
+    // 辨識成功時，預先做出碎片半透明疊合圖層（供結果頁切換顯示）
+    if (result.found && result.homography) {
+      try {
+        result.overlayCanvas = buildOverlayCanvas(
+          cv,
+          scaled,
+          result.homography,
+          state.reference.width,
+          state.reference.height
+        );
+      } catch (e) {
+        console.error('建立疊合圖層失敗', e);
+        result.overlayCanvas = null;
+      }
+    }
+    state.lastResult = result;
   } catch (err) {
     console.error(err);
     state.lastResult = null;

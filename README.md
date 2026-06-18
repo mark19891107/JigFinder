@@ -11,24 +11,28 @@
 - 📷 開啟相機、中央對位框引導取景，拍攝單一碎片。
 - 🧩 以 OpenCV.js（ORB 特徵 + 單應性矩陣）比對，定位碎片在大圖中的位置。
 - 🎯 結果在大圖上以方框／標記點呈現，附信心度與估計旋轉角度，並可放大檢視。
+- 🧩 可切換**半透明疊合碎片**（把碎片透視變形疊回落點）與 **Top-N 候選位置**（重複紋理拼圖更實用）。
 - 🖼️ 相機不可用時，可改從相簿上傳碎片照。
 
 ## 技術棧
 
 - Vanilla JavaScript（ES Modules）+ [Vite](https://vitejs.dev/)
-- [OpenCV.js](https://docs.opencv.org/)（WebAssembly，預設由 CDN 載入）
+- [OpenCV.js](https://docs.opencv.org/)（WebAssembly）— 由 npm 套件 `@techstark/opencv-js` **內嵌於本站**，不依賴外部 CDN
 - IndexedDB、MediaDevices `getUserMedia`
 
 ## 本機開發
 
 ```bash
-npm install
+npm install      # 安裝相依套件；postinstall 會把 OpenCV.js 複製到 public/opencv.js
 npm run dev      # 啟動開發伺服器
 npm run build    # 產出 dist/
 npm run preview  # 預覽 build 結果
 ```
 
 > 相機需在 HTTPS 或 `localhost` 下才能使用。`npm run dev` 的 `localhost` 即可。
+>
+> OpenCV.js（約 10MB）由 `@techstark/opencv-js` 經 `postinstall`（`scripts/vendor-opencv.mjs`）
+> 複製到 `public/opencv.js`，已加入 `.gitignore`，CI 安裝時會自動產生。
 
 ## 部署到 GitHub Pages
 

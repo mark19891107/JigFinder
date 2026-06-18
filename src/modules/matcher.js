@@ -46,6 +46,36 @@ function isReasonableQuad(c, refW, refH) {
   return true;
 }
 
+// 由配對到的大圖特徵點分佈，用網格投票 + 非極大抑制找出 Top-N 候選區域。
+function computeCandidates(points, refW, refH) {
+  const cellSize = Math.max(refW, refH) / CONFIG.CANDIDATE_GRID;
+  const buckets = new Map();
+  for (const p of points) {
+    const key = Math.floor(p.x / cellSize) + ',' + Math.floor(p.y / cellSize);
+    let b = buckets.get(key);
+    if (!b) {
+      b = { sx: 0, sy: 0, votes: 0 };
+      buckets.set(key, b);
+    }
+    b.sx += p.x;
+    b.sy += p.y;
+    b.votes++;
+  }
+
+  const ranked = [...buckets.values()]
+    .map((b) => ({ x: b.sx / b.votes, y: b.sy / b.votes, votes: b.votes }))
+    .filter((c) => c.votes >= CONFIG.MIN_CANDIDATE_VOTES)
+    .sort((a, b) => b.votes - a.votes);
+
+  const kept = [];
+  for (const c of ranked) {
+    const tooClose = kept.some((k) => Math.hypot(k.x - c.x, k.y - c.y) < cellSize * 1.5);
+    if (!tooClose) kept.push(c);
+    if (kept.length >= CONFIG.MAX_CANDIDATES) break;
+  }
+  return kept;
+}
+
 function emptyResult() {
   return {
     found: false,
@@ -56,6 +86,8 @@ function emptyResult() {
     corners: null,
     angle: 0,
     level: 'none',
+    candidates: [],
+    homography: null,
   };
 }
 
@@ -80,6 +112,7 @@ export function matchPiece(cv, piece, reference) {
     // Lowe's ratio test
     const srcArr = [];
     const dstArr = [];
+    const refPoints = [];
     let good = 0;
     for (let i = 0; i < knn.size(); i++) {
       const pair = knn.get(i);
@@ -91,11 +124,15 @@ export function matchPiece(cv, piece, reference) {
         const rk = reference.keypoints.get(m.trainIdx).pt;
         srcArr.push(pk.x, pk.y);
         dstArr.push(rk.x, rk.y);
+        refPoints.push({ x: rk.x, y: rk.y });
         good++;
       }
     }
     result.goodMatches = good;
     if (good < CONFIG.MIN_GOOD_MATCHES) return result;
+
+    // 候選區域（即使最終單應性失敗，也能提供分佈線索）
+    result.candidates = computeCandidates(refPoints, reference.width, reference.height);
 
     srcPts = cv.matFromArray(good, 1, cv.CV_32FC2, srcArr);
     dstPts = cv.matFromArray(good, 1, cv.CV_32FC2, dstArr);
@@ -110,6 +147,9 @@ export function matchPiece(cv, piece, reference) {
     }
     result.inliers = inliers;
     if (inliers < CONFIG.MIN_INLIERS) return result;
+
+    // 保留單應性矩陣（9 個數值），供半透明疊合時做透視變形
+    result.homography = Array.from(H.data64F);
 
     // 把碎片影像四角投影到大圖座標
     const w = piece.width;

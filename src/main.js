@@ -1,5 +1,5 @@
 import './style.css';
-import { CONFIG, state } from './state.js';
+import { CONFIG, state, loadSettings, resetSettings } from './state.js';
 import { loadOpenCV } from './modules/opencv.js';
 import { savePuzzle, loadPuzzle } from './modules/storage.js';
 import { startCamera, stopCamera, captureCrop } from './modules/camera.js';
@@ -37,6 +37,9 @@ function render() {
       break;
     case 'RESULT':
       ui.renderResult(state, handlers);
+      break;
+    case 'SETTINGS':
+      ui.renderSettings(handlers);
       break;
     case 'ERROR':
       ui.renderError(state.error, handlers);
@@ -173,6 +176,20 @@ const handlers = {
     setView('SETUP');
   },
 
+  onOpenSettings() {
+    stopCamera();
+    setView('SETTINGS');
+  },
+
+  onCloseSettings() {
+    setView(state.puzzle ? 'READY' : 'SETUP');
+  },
+
+  onResetSettings() {
+    resetSettings();
+    setView('SETTINGS'); // 重繪以更新滑桿數值
+  },
+
   onReload() {
     window.location.reload();
   },
@@ -181,6 +198,7 @@ const handlers = {
 // ---- 啟動 --------------------------------------------------------------
 
 async function init() {
+  loadSettings(); // 套用使用者保存的辨識門檻
   render(); // LOADING
 
   try {

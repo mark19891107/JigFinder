@@ -297,6 +297,44 @@ body {
   flex: 1;
 }
 
+/* ---- 設定面板 ---- */
+.settings-stage {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.setting {
+  background: var(--surface);
+  border: 1px solid var(--surface-2);
+  border-radius: var(--radius);
+  padding: 14px;
+}
+
+.setting-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.setting-val {
+  color: var(--primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.setting-range {
+  width: 100%;
+  accent-color: var(--primary);
+}
+
+.setting-hint {
+  color: var(--muted);
+  font-size: 0.8rem;
+  margin: 8px 0 0;
+}
+
 /* ---- 載入動畫 ---- */
 .spinner {
   width: 42px;

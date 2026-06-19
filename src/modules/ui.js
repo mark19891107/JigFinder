@@ -67,18 +67,22 @@ export function renderSetup(handlers) {
 }
 
 export function renderReady(state, handlers) {
-  objectUrl = URL.createObjectURL(state.puzzle.blob);
+  // 先 setApp（會 revoke 前一個 objectUrl 並清空），再建立新縮圖 URL 指派給 <img>，
+  // 避免剛建立的 blob URL 立刻被 setApp revoke 掉而 ERR_FILE_NOT_FOUND。
   setApp(
     shell(
       '已就緒',
       `<div class="center-card">
-         <div class="thumb-wrap"><img class="thumb" src="${objectUrl}" alt="拼圖大圖" /></div>
+         <div class="thumb-wrap"><img class="thumb" id="puzzle-thumb" alt="拼圖大圖" /></div>
          <p class="muted">${state.puzzle.width} × ${state.puzzle.height}px</p>
          <button class="btn primary block" id="scan">📷 掃描碎片</button>
          <button class="btn ghost block" id="change">更換大圖</button>
        </div>`
     )
   );
+  objectUrl = URL.createObjectURL(state.puzzle.blob);
+  const thumb = document.getElementById('puzzle-thumb');
+  if (thumb) thumb.src = objectUrl;
   document.getElementById('scan').addEventListener('click', () => handlers.onScan());
   document.getElementById('change').addEventListener('click', () => handlers.onChangePuzzle());
 }

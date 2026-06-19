@@ -1,7 +1,9 @@
-// 載入並初始化 OpenCV.js（WebAssembly 版）。
-// 由本站自身提供（public/opencv.js，來源見 scripts/vendor-opencv.mjs），不依賴外部 CDN。
-// 以 document.baseURI 解析，確保 GitHub Pages 子路徑與本機開發都能正確載入。
-const OPENCV_URL = new URL('opencv.js', document.baseURI).href;
+// 載入並初始化 OpenCV.js（WebAssembly 版），由外部 CDN 提供。
+// 採多來源後備：第一個來源失敗（網路/404）時自動換下一個，提升穩定度。
+const OPENCV_URLS = [
+  'https://docs.opencv.org/4.10.0/opencv.js',
+  'https://cdn.jsdelivr.net/npm/@techstark/opencv-js@4.12.0-release.1/dist/opencv.js',
+];
 
 let loadPromise = null;
 
@@ -16,12 +18,8 @@ export function loadOpenCV() {
       return;
     }
 
-    const script = document.createElement('script');
-    script.src = OPENCV_URL;
-    script.async = true;
-
+    // 嘗試讓 cv 就緒：支援 Promise 版與傳統（onRuntimeInitialized）版
     const settle = () => {
-      // 新版可能把 cv 暴露為 Promise（非同步 WASM 模組）
       if (window.cv && typeof window.cv.then === 'function') {
         window.cv.then((c) => {
           window.cv = c;
@@ -36,10 +34,8 @@ export function loadOpenCV() {
       return false;
     };
 
-    script.onload = () => {
-      if (settle()) return;
-      // 傳統建置：WASM 仍在初始化，輪詢直到 runtime 就緒
-      let waited = 0;
+    let waited = 0;
+    const startPolling = () => {
       const timer = setInterval(() => {
         if (settle()) {
           clearInterval(timer);
@@ -53,8 +49,25 @@ export function loadOpenCV() {
       }, 50);
     };
 
-    script.onerror = () => reject(new Error('OpenCV.js 載入失敗（請檢查網路連線）'));
-    document.head.appendChild(script);
+    const tryLoad = (i) => {
+      if (i >= OPENCV_URLS.length) {
+        reject(new Error('OpenCV.js 載入失敗（所有來源都無法取得，請檢查網路）'));
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = OPENCV_URLS[i];
+      script.async = true;
+      script.onload = () => {
+        if (!settle()) startPolling(); // WASM 仍在初始化，開始輪詢
+      };
+      script.onerror = () => {
+        script.remove();
+        tryLoad(i + 1); // 換下一個來源
+      };
+      document.head.appendChild(script);
+    };
+
+    tryLoad(0);
   });
 
   return loadPromise;

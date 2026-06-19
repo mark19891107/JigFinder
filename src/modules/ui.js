@@ -1,5 +1,5 @@
 // 畫面渲染層：依狀態繪製各畫面，並把使用者操作轉交給 handlers。
-import { CONFIG } from '../state.js';
+import { CONFIG, TUNABLE, saveSettings } from '../state.js';
 
 const app = () => document.getElementById('app');
 let objectUrl = null; // 目前大圖縮圖的 ObjectURL，於每次渲染前釋放
@@ -76,6 +76,7 @@ export function renderReady(state, handlers) {
          <div class="thumb-wrap"><img class="thumb" id="puzzle-thumb" alt="拼圖大圖" /></div>
          <p class="muted">${state.puzzle.width} × ${state.puzzle.height}px</p>
          <button class="btn primary block" id="scan">📷 掃描碎片</button>
+         <button class="btn ghost block" id="settings">⚙️ 辨識設定</button>
          <button class="btn ghost block" id="change">更換大圖</button>
        </div>`
     )
@@ -84,7 +85,48 @@ export function renderReady(state, handlers) {
   const thumb = document.getElementById('puzzle-thumb');
   if (thumb) thumb.src = objectUrl;
   document.getElementById('scan').addEventListener('click', () => handlers.onScan());
+  document.getElementById('settings').addEventListener('click', () => handlers.onOpenSettings());
   document.getElementById('change').addEventListener('click', () => handlers.onChangePuzzle());
+}
+
+export function renderSettings(handlers) {
+  const fields = TUNABLE.map((f) => {
+    const val = CONFIG[f.key];
+    return `
+      <div class="setting">
+        <label class="setting-label" for="rng-${f.key}">
+          ${f.label} <span class="setting-val" id="val-${f.key}">${val}</span>
+        </label>
+        <input class="setting-range" type="range" id="rng-${f.key}"
+               min="${f.min}" max="${f.max}" step="${f.step}" value="${val}" />
+        <p class="setting-hint">${f.hint}</p>
+      </div>`;
+  }).join('');
+
+  setApp(
+    shell(
+      '辨識設定',
+      `<div class="settings-stage">
+         <p class="muted">「找不到」太頻繁時，可把<strong>配對數 / 內點數</strong>調低，或把<strong>比對寬鬆度</strong>調高。改動會立即套用並自動保存。</p>
+         ${fields}
+         <button class="btn ghost block" id="reset">恢復預設值</button>
+         <button class="btn primary block" id="back">← 返回</button>
+       </div>`
+    )
+  );
+
+  TUNABLE.forEach((f) => {
+    const rng = document.getElementById('rng-' + f.key);
+    const out = document.getElementById('val-' + f.key);
+    rng.addEventListener('input', () => {
+      const v = f.step < 1 ? parseFloat(rng.value) : parseInt(rng.value, 10);
+      CONFIG[f.key] = v;
+      out.textContent = v;
+      saveSettings();
+    });
+  });
+  document.getElementById('reset').addEventListener('click', () => handlers.onResetSettings());
+  document.getElementById('back').addEventListener('click', () => handlers.onCloseSettings());
 }
 
 export function renderCamera(handlers) {
@@ -141,13 +183,15 @@ export function renderResult(state, handlers) {
         '找不到',
         `<div class="center-card">
            <p class="error-text">😕 找不到符合的位置</p>
-           <p class="muted">可能原因：碎片紋理太少、模糊、反光，或未對準框內。請重拍一次。</p>
+           <p class="muted">可能原因：碎片紋理太少、模糊、反光、未對準框內，或門檻偏嚴。可重拍，或調整辨識設定。</p>
            <button class="btn primary block" id="rescan">重新拍攝</button>
+           <button class="btn ghost block" id="settings">⚙️ 調整靈敏度</button>
            <button class="btn ghost block" id="change">更換大圖</button>
          </div>`
       )
     );
     document.getElementById('rescan').addEventListener('click', () => handlers.onRescan());
+    document.getElementById('settings').addEventListener('click', () => handlers.onOpenSettings());
     document.getElementById('change').addEventListener('click', () => handlers.onChangePuzzle());
     return;
   }

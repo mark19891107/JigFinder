@@ -19,8 +19,9 @@ export function toScaledCanvas(source, maxSide) {
 
 // 建立 ORB 偵測器，容忍不同 OpenCV.js 建置的建構子多載差異。
 function createORB(cv, nfeatures) {
+  // nlevels 加深到 12（預設 8）以涵蓋碎片近拍與大圖之間較大的尺度差距。
   const attempts = [
-    () => new cv.ORB(nfeatures, 1.2, 8, 31, 0, 2, 0, 31, 20),
+    () => new cv.ORB(nfeatures, 1.2, 12, 31, 0, 2, 0, 31, 20),
     () => new cv.ORB(nfeatures),
     () => new cv.ORB(),
   ];

@@ -190,6 +190,21 @@ const handlers = {
     setView('SETTINGS'); // 重繪以更新滑桿數值
   },
 
+  async onRecomputeReference() {
+    if (!state.puzzle) {
+      setView('SETTINGS');
+      return;
+    }
+    ui.renderLoading('正在以新解析度重算大圖特徵…（可能需數秒）');
+    await tick();
+    try {
+      computeReference(state.puzzle.bitmap);
+    } catch (err) {
+      console.error(err);
+    }
+    setView('SETTINGS');
+  },
+
   onReload() {
     window.location.reload();
   },

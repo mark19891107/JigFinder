@@ -335,6 +335,24 @@ body {
   margin: 8px 0 0;
 }
 
+.settings-h {
+  margin: 8px 0 0;
+  font-size: 0.95rem;
+  color: var(--muted);
+  border-bottom: 1px solid var(--surface-2);
+  padding-bottom: 6px;
+}
+
+.settings-foot {
+  display: flex;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.settings-foot .btn {
+  flex: 1;
+}
+
 /* ---- 載入動畫 ---- */
 .spinner {
   width: 42px;

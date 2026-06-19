@@ -90,7 +90,7 @@ export function renderReady(state, handlers) {
 }
 
 export function renderSettings(handlers) {
-  const fields = TUNABLE.map((f) => {
+  const fieldHtml = (f) => {
     const val = CONFIG[f.key];
     return `
       <div class="setting">
@@ -101,16 +101,27 @@ export function renderSettings(handlers) {
                min="${f.min}" max="${f.max}" step="${f.step}" value="${val}" />
         <p class="setting-hint">${f.hint}</p>
       </div>`;
-  }).join('');
+  };
+  const matchFields = TUNABLE.filter((f) => f.group === 'match').map(fieldHtml).join('');
+  const imageFields = TUNABLE.filter((f) => f.group === 'image').map(fieldHtml).join('');
 
   setApp(
     shell(
       '辨識設定',
       `<div class="settings-stage">
-         <p class="muted">「找不到」太頻繁時，可把<strong>配對數 / 內點數</strong>調低，或把<strong>比對寬鬆度</strong>調高。改動會立即套用並自動保存。</p>
-         ${fields}
-         <button class="btn ghost block" id="reset">恢復預設值</button>
-         <button class="btn primary block" id="back">← 返回</button>
+         <p class="muted">「找不到」太頻繁時：先把<strong>內點數 / 配對數</strong>調低、<strong>寬鬆度</strong>調高。若是<strong>馬賽克／密集圖樣</strong>拼圖，請把<strong>大圖解析度</strong>調高，並上傳高解析大圖。</p>
+
+         <h3 class="settings-h">比對門檻（即時生效）</h3>
+         ${matchFields}
+
+         <h3 class="settings-h">影像解析度 / 特徵量</h3>
+         ${imageFields}
+         <button class="btn primary block" id="recompute">🔄 重算大圖特徵（套用大圖解析度）</button>
+
+         <div class="settings-foot">
+           <button class="btn ghost block" id="reset">恢復預設值</button>
+           <button class="btn ghost block" id="back">← 返回</button>
+         </div>
        </div>`
     )
   );
@@ -118,6 +129,7 @@ export function renderSettings(handlers) {
   TUNABLE.forEach((f) => {
     const rng = document.getElementById('rng-' + f.key);
     const out = document.getElementById('val-' + f.key);
+    if (!rng) return;
     rng.addEventListener('input', () => {
       const v = f.step < 1 ? parseFloat(rng.value) : parseInt(rng.value, 10);
       CONFIG[f.key] = v;
@@ -125,6 +137,7 @@ export function renderSettings(handlers) {
       saveSettings();
     });
   });
+  document.getElementById('recompute').addEventListener('click', () => handlers.onRecomputeReference());
   document.getElementById('reset').addEventListener('click', () => handlers.onResetSettings());
   document.getElementById('back').addEventListener('click', () => handlers.onCloseSettings());
 }

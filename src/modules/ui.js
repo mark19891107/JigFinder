@@ -201,6 +201,12 @@ export function renderResult(state, handlers) {
   const r = state.lastResult;
   const view = { zoom: 1, showCandidates: false, showOverlay: false };
 
+  // 精準定位失敗，但有候選叢集 → 改顯示「最可能區域」（對馬賽克/重複紋理較實用）
+  if (r && !r.found && r.candidates && r.candidates.length) {
+    renderApprox(state, handlers, r);
+    return;
+  }
+
   if (!r || !r.found) {
     const d = r || {};
     setApp(
@@ -290,6 +296,77 @@ export function renderResult(state, handlers) {
 
   document.getElementById('rescan').addEventListener('click', () => handlers.onRescan());
   document.getElementById('change').addEventListener('click', () => handlers.onChangePuzzle());
+}
+
+// 精準定位失敗時的「最可能區域」畫面（配對密度熱點）
+function renderApprox(state, handlers, r) {
+  setApp(
+    shell(
+      '最可能區域',
+      `<div class="result-stage">
+         <p class="muted">⚠️ 重複紋理無法精準定位。以下是配對最密集的「可能區域」，數字為可能性排序（① 最可能）。</p>
+         <div class="canvas-wrap"><canvas id="approx-canvas"></canvas></div>
+         <div class="result-meta">
+           <span class="badge">配對 ${r.goodMatches}</span>
+           <span class="badge">候選 ${r.candidates.length}</span>
+           <span class="badge">① ${r.candidates[0].votes} 票</span>
+         </div>
+         <div class="result-actions">
+           <button class="btn primary block" id="rescan">再掃一片</button>
+         </div>
+         <button class="btn ghost block" id="settings">⚙️ 調整靈敏度</button>
+         <button class="btn ghost block" id="change">更換大圖</button>
+       </div>`
+    )
+  );
+  const canvas = document.getElementById('approx-canvas');
+  const redraw = () =>
+    requestAnimationFrame(() => drawApprox(canvas, state.puzzle.bitmap, state.reference, r.candidates));
+  redraw();
+  window.addEventListener('resize', redraw, { once: true });
+  document.getElementById('rescan').addEventListener('click', () => handlers.onRescan());
+  document.getElementById('settings').addEventListener('click', () => handlers.onOpenSettings());
+  document.getElementById('change').addEventListener('click', () => handlers.onChangePuzzle());
+}
+
+// 畫整張大圖 + 候選熱點（依票數大小、① 為最可能、綠色強調）
+function drawApprox(canvas, bitmap, reference, candidates) {
+  const dpr = window.devicePixelRatio || 1;
+  const cssW = canvas.parentElement.clientWidth || 360;
+  const aspect = bitmap.height / bitmap.width;
+  const cssH = Math.round(cssW * aspect);
+  canvas.style.width = cssW + 'px';
+  canvas.style.height = cssH + 'px';
+  canvas.width = Math.round(cssW * dpr);
+  canvas.height = Math.round(cssH * dpr);
+
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, cssW, cssH);
+  ctx.drawImage(bitmap, 0, 0, cssW, cssH);
+
+  const sx = cssW / reference.width;
+  const sy = cssH / reference.height;
+  const maxVotes = candidates[0] ? candidates[0].votes : 1;
+
+  candidates.forEach((c, i) => {
+    const x = c.x * sx;
+    const y = c.y * sy;
+    const rad = 12 + 20 * (c.votes / maxVotes);
+    const top = i === 0;
+    ctx.beginPath();
+    ctx.arc(x, y, rad, 0, Math.PI * 2);
+    ctx.fillStyle = top ? 'rgba(74, 222, 128, 0.30)' : 'rgba(96, 165, 250, 0.22)';
+    ctx.fill();
+    ctx.lineWidth = top ? 4 : 2;
+    ctx.strokeStyle = top ? 'rgba(74, 222, 128, 0.95)' : 'rgba(96, 165, 250, 0.9)';
+    ctx.stroke();
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 14px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(String(i + 1), x, y);
+  });
 }
 
 // ---- 結果繪製 ----------------------------------------------------------

@@ -88,12 +88,16 @@ function emptyResult() {
     level: 'none',
     candidates: [],
     homography: null,
+    piecePts: 0,
+    refPts: 0,
   };
 }
 
 // piece / reference: { keypoints, descriptors, width, height }
 export function matchPiece(cv, piece, reference) {
   const result = emptyResult();
+  result.piecePts = piece.keypoints ? piece.keypoints.size() : 0;
+  result.refPts = reference.keypoints ? reference.keypoints.size() : 0;
 
   if (
     !piece.descriptors || piece.descriptors.rows < 2 ||

@@ -186,17 +186,35 @@ export function renderAnalyzing() {
   );
 }
 
+// 依診斷數字給出對症建議
+function diagHint(d) {
+  if (!d || !d.piecePts) {
+    return '碎片幾乎沒有偵測到特徵：請對焦、讓碎片填滿綠框、避免反光與晃動後重拍。';
+  }
+  if ((d.goodMatches || 0) < CONFIG.MIN_GOOD_MATCHES) {
+    return '好配對太少（馬賽克／重複紋理常見）：到「⚙️ 調整靈敏度」把「比對寬鬆度」拉到 0.88–0.92、「最少配對數」調低再試。';
+  }
+  return '配對足夠但幾何驗證未過：把「最少內點數」調低（如 5），或開啟「📍 候選位置」參考。';
+}
+
 export function renderResult(state, handlers) {
   const r = state.lastResult;
   const view = { zoom: 1, showCandidates: false, showOverlay: false };
 
   if (!r || !r.found) {
+    const d = r || {};
     setApp(
       shell(
         '找不到',
         `<div class="center-card">
            <p class="error-text">😕 找不到符合的位置</p>
-           <p class="muted">可能原因：碎片紋理太少、模糊、反光、未對準框內，或門檻偏嚴。可重拍，或調整辨識設定。</p>
+           <div class="result-meta">
+             <span class="badge">大圖特徵 ${d.refPts || 0}</span>
+             <span class="badge">碎片特徵 ${d.piecePts || 0}</span>
+             <span class="badge">配對 ${d.goodMatches || 0}</span>
+             <span class="badge">內點 ${d.inliers || 0}</span>
+           </div>
+           <p class="muted">${diagHint(d)}</p>
            <button class="btn primary block" id="rescan">重新拍攝</button>
            <button class="btn ghost block" id="settings">⚙️ 調整靈敏度</button>
            <button class="btn ghost block" id="change">更換大圖</button>
@@ -225,6 +243,7 @@ export function renderResult(state, handlers) {
          <div class="canvas-wrap"><canvas id="result-canvas"></canvas></div>
          <div class="result-meta">
            <span class="badge ${lv.cls}">信心度：${lv.text}・${r.confidence}%</span>
+           <span class="badge">配對 ${r.goodMatches}</span>
            <span class="badge">內點 ${r.inliers}</span>
            <span class="badge">旋轉約 ${angle}°</span>
          </div>
